@@ -1,0 +1,143 @@
+{
+  "best_model": "Random Forest",
+  "best_accuracy": 0.6740088105726872,
+  "all_results": {
+    "Logistic Regression": {
+      "accuracy": 0.641,
+      "recall": 0.5697,
+      "precision": 0.5054,
+      "f1_score": 0.5356,
+      "roc_auc": 0.6819,
+      "cv_recall_mean": 0.687,
+      "cv_recall_std": 0.0202,
+      "confusion_matrix": [
+        [
+          197,
+          92
+        ],
+        [
+          71,
+          94
+        ]
+      ],
+      "best_params": {
+        "solver": "liblinear",
+        "penalty": "l1",
+        "C": "5.0"
+      }
+    },
+    "Random Forest": {
+      "accuracy": 0.674,
+      "recall": 0.4485,
+      "precision": 0.5649,
+      "f1_score": 0.5,
+      "roc_auc": 0.6927,
+      "cv_recall_mean": 0.7952,
+      "cv_recall_std": 0.0123,
+      "confusion_matrix": [
+        [
+          232,
+          57
+        ],
+        [
+          91,
+          74
+        ]
+      ],
+      "best_params": {
+        "n_estimators": "200",
+        "min_samples_split": "2",
+        "min_samples_leaf": "1",
+        "max_features": "log2",
+        "max_depth": "None"
+      }
+    },
+    "Gradient Boosting": {
+      "accuracy": 0.6388,
+      "recall": 0.4788,
+      "precision": 0.5032,
+      "f1_score": 0.4907,
+      "roc_auc": 0.6659,
+      "cv_recall_mean": 0.7844,
+      "cv_recall_std": 0.012,
+      "confusion_matrix": [
+        [
+          211,
+          78
+        ],
+        [
+          86,
+          79
+        ]
+      ],
+      "best_params": {
+        "subsample": "0.8",
+        "n_estimators": "100",
+        "min_samples_split": "5",
+        "max_depth": "7",
+        "learning_rate": "0.05"
+      }
+    },
+    "XGBoost": {
+      "accuracy": 0.6454,
+      "recall": 0.4848,
+      "precision": 0.5128,
+      "f1_score": 0.4984,
+      "roc_auc": 0.6821,
+      "cv_recall_mean": 0.7805,
+      "cv_recall_std": 0.0091,
+      "confusion_matrix": [
+        [
+          213,
+          76
+        ],
+        [
+          85,
+          80
+        ]
+      ],
+      "best_params": {
+        "subsample": "0.9",
+        "n_estimators": "200",
+        "min_child_weight": "3",
+        "max_depth": "9",
+        "learning_rate": "0.05",
+        "gamma": "0.1",
+        "colsample_bytree": "0.9"
+      }
+    }
+  },
+  "features": {
+    "numeric": [
+      "Age",
+      "BMI",
+      "Tumor_Stage",
+      "Tumor_Grade",
+      "Tumor_Size_cm",
+      "Time_Since_Treatment_Months",
+      "Follow_Up_Visits"
+    ],
+    "categorical": [
+      "Sex",
+      "Athleticity",
+      "Smoking_Alcohol_History",
+      "Cancer_Type",
+      "Lymph_Nodes_Involved",
+      "Metastasis",
+      "Tumor_Type",
+      "Hormone_Receptor",
+      "Gene_Mutations",
+      "Surgery_Type",
+      "Chemotherapy",
+      "Radiation_Therapy",
+      "Hormone_Therapy",
+      "Immunotherapy",
+      "Previous_Reoccurrence"
+    ]
+  },
+  "dataset_size": 2267,
+  "train_size": 1813,
+  "test_size": 454,
+  "smote_applied": true,
+  "hyperparameter_tuning": true
+}

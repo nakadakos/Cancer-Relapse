@@ -1,0 +1,22 @@
+{
+  "Tumor_Stage": 0.0685,
+  "Tumor_Size_cm": 0.0671,
+  "Age": 0.0663,
+  "Time_Since_Treatment_Months": 0.0656,
+  "BMI": 0.0644,
+  "Follow_Up_Visits": 0.0567,
+  "Lymph_Nodes_Involved_Yes": 0.0368,
+  "Lymph_Nodes_Involved_No": 0.0366,
+  "Tumor_Grade": 0.0293,
+  "Cancer_Type_Liver": 0.0277,
+  "Metastasis_Yes": 0.024,
+  "Metastasis_No": 0.0207,
+  "Smoking_Alcohol_History_nan": 0.0203,
+  "Gene_Mutations_nan": 0.0182,
+  "Athleticity_Low": 0.0175,
+  "Athleticity_Medium": 0.0174,
+  "Chemotherapy_Yes": 0.0167,
+  "Chemotherapy_No": 0.0161,
+  "Surgery_Type_nan": 0.0148,
+  "Smoking_Alcohol_History_Frequent": 0.0148
+}
