@@ -64,10 +64,39 @@ function App() {
     set(name, value);
   };
 
-  const next = () => setStep(s => Math.min(s + 1, STEPS.length - 1));
-  const prev = () => setStep(s => Math.max(s - 1, 0));
+  const validateCurrentStep = () => {
+    if (step === 0) {
+      if (!form.Age || form.Age < 18 || form.Age > 100) return "Please enter a valid Age (18-100).";
+      if (!form.BMI || form.BMI < 10 || form.BMI > 60) return "Please enter a valid BMI (10-60).";
+    }
+    if (step === 1) {
+      if (!form.Tumor_Stage || form.Tumor_Stage < 1 || form.Tumor_Stage > 4) return "Tumor Stage must be 1-4.";
+      if (!form.Tumor_Grade || form.Tumor_Grade < 1 || form.Tumor_Grade > 3) return "Tumor Grade must be 1-3.";
+      if (!form.Tumor_Size_cm || form.Tumor_Size_cm < 0.1 || form.Tumor_Size_cm > 30) return "Tumor Size must be 0.1-30 cm.";
+    }
+    if (step === 4) {
+      if (form.Time_Since_Treatment_Months === '' || form.Time_Since_Treatment_Months < 0 || form.Time_Since_Treatment_Months > 240) return "Time since treatment must be 0-240 months.";
+      if (form.Follow_Up_Visits === '' || form.Follow_Up_Visits < 0 || form.Follow_Up_Visits > 100) return "Follow up visits must be 0-100.";
+    }
+    return null;
+  };
+
+  const next = () => {
+    const err = validateCurrentStep();
+    if (err) { setError(err); return; }
+    setError(null);
+    setStep(s => Math.min(s + 1, STEPS.length - 1));
+  };
+  
+  const prev = () => {
+    setError(null);
+    setStep(s => Math.max(s - 1, 0));
+  };
 
   const submit = async () => {
+    const validationErr = validateCurrentStep();
+    if (validationErr) { setError(validationErr); return; }
+
     setLoading(true);
     setError(null);
     try {
@@ -85,8 +114,16 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error('Server error');
+      
       const data = await res.json();
+      
+      if (!res.ok) {
+        if (res.status === 422) {
+          throw new Error("Validation Error: " + data.detail[0].msg + " for '" + data.detail[0].loc[1] + "'");
+        }
+        throw new Error(data.error || 'Server error');
+      }
+      
       if (data.error) throw new Error(data.error);
       setResult(data);
     } catch (err) {
@@ -186,11 +223,6 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <div className="app-logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </div>
         <h1 className="app-title">C.A.R.E.</h1>
         <p className="app-subtitle">Clinical Augmentation & Relapse Estimator</p>
         <div className="tab-nav">
@@ -225,7 +257,7 @@ function App() {
                 {STEPS.map((s, i) => (
                   <div key={s} style={{ display: 'flex', alignItems: 'center' }}>
                     <div className={`step ${i === step ? 'active' : i < step ? 'completed' : ''}`}
-                         onClick={() => setStep(i)} style={{ cursor: 'pointer' }}>
+                      onClick={() => setStep(i)} style={{ cursor: 'pointer' }}>
                       <div className="step-dot">
                         {i < step ? <Icon d="M5 13l4 4L19 7" /> : i + 1}
                       </div>
@@ -252,6 +284,9 @@ function App() {
           )}
         </main>
       )}
+      <footer style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '1rem' }}>
+        Designed by Jotham's backend. © 2026
+      </footer>
     </div>
   );
 }
@@ -285,11 +320,11 @@ function Results({ result, gaugeProps, reset }) {
         </div>
         <div className={`risk-badge ${level}`}>
           {level === 'high' ? (
-            <><span style={{marginRight: '6px'}}><Icon d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></span> High Risk</>
+            <><span style={{ marginRight: '6px' }}><Icon d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></span> High Risk</>
           ) : level === 'medium' ? (
-            <><span style={{marginRight: '6px'}}><Icon d="M13 10V3L4 14h7v7l9-11h-7z" /></span> Medium Risk</>
+            <><span style={{ marginRight: '6px' }}><Icon d="M13 10V3L4 14h7v7l9-11h-7z" /></span> Medium Risk</>
           ) : (
-            <><span style={{marginRight: '6px'}}><Icon d="M5 13l4 4L19 7" /></span> Low Risk</>
+            <><span style={{ marginRight: '6px' }}><Icon d="M5 13l4 4L19 7" /></span> Low Risk</>
           )}
         </div>
       </div>
@@ -352,9 +387,9 @@ function Results({ result, gaugeProps, reset }) {
 
       <div className="disclaimer">
         <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Icon d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /> 
+          <Icon d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           Medical Disclaimer:
-        </strong> 
+        </strong>
         This tool is for educational and research purposes only.
         It is not a substitute for professional medical advice, diagnosis, or treatment. Always consult
         qualified healthcare providers for clinical decisions.

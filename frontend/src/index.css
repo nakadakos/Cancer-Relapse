@@ -56,11 +56,14 @@ body::before {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background: 
-    radial-gradient(ellipse 600px 400px at 15% 20%, rgba(59, 130, 246, 0.08), transparent),
-    radial-gradient(ellipse 500px 500px at 85% 60%, rgba(139, 92, 246, 0.06), transparent),
-    radial-gradient(ellipse 400px 300px at 50% 90%, rgba(6, 182, 212, 0.05), transparent);
+    radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
+  background-size: 200% 200%;
   pointer-events: none;
   z-index: 0;
+  animation: auroraBg 25s ease-in-out infinite alternate;
 }
 
 #root {
@@ -655,6 +658,14 @@ select.form-control option {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes auroraBg {
+  0% { background-position: 0% 0%; }
+  25% { background-position: 100% 0%; }
+  50% { background-position: 100% 100%; }
+  75% { background-position: 0% 100%; }
+  100% { background-position: 0% 0%; }
 }
 
 /* ====== RESPONSIVE ====== */
