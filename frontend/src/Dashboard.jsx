@@ -56,10 +56,10 @@ export default function Dashboard() {
     <div className="dashboard-container">
       {/* Summary Cards */}
       <div className="stat-cards">
-        <StatCard label="Total Records" value={summary.total_records.toLocaleString()} icon="📊" />
-        <StatCard label="Cancer Types" value={summary.cancer_types} icon="🔬" />
-        <StatCard label="Real-World Data" value={`${summary.real_data_pct}%`} icon="🏥" />
-        <StatCard label="Best Model" value={summary.best_model} icon="🤖" small />
+        <StatCard label="Total Records" value={summary.total_records.toLocaleString()} icon={['M18 20V10', 'M12 20V4', 'M6 20v-6']} />
+        <StatCard label="Cancer Types" value={summary.cancer_types} icon={['M9 3h6', 'M10 3v4l-6 11a2 2 0 002 2h12a2 2 0 002-2l-6-11V3']} />
+        <StatCard label="Real-World Data" value={`${summary.real_data_pct}%`} icon={['M3 21h18', 'M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16', 'M12 9v6', 'M9 12h6']} />
+        <StatCard label="Best Model" value={summary.best_model} icon={['M12 2v4', 'M6 6h12a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2z', 'M8 11h.01', 'M16 11h.01', 'M9 15h6']} small />
       </div>
 
       {/* Row 1: Relapse by Cancer Type + Pie */}
@@ -213,7 +213,11 @@ function ChartCard({ title, subtitle, children }) {
 function StatCard({ label, value, icon, small }) {
   return (
     <div className="stat-card">
-      <span className="stat-icon">{icon}</span>
+      <span className="stat-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+          {Array.isArray(icon) ? icon.map((d, i) => <path key={i} d={d} />) : <path d={icon} />}
+        </svg>
+      </span>
       <div>
         <div className={`stat-value ${small ? 'small' : ''}`}>{value}</div>
         <div className="stat-label">{label}</div>
