@@ -1,4 +1,4 @@
-# OncoRelapse — Backend
+# C.A.R.E. — Backend
 
 FastAPI server that exposes the trained ML model as a REST API.
 

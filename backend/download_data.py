@@ -1,9 +1,4 @@
 """
-download_data.py
-================
-Downloads real-world cancer datasets from UCI Machine Learning Repository
-and other public sources for the Cancer Relapse Prediction project.
-
 Datasets:
 1. UCI Breast Cancer (Ljubljana) - 286 records, recurrence target
 2. Wisconsin Prognostic Breast Cancer (WPBC) - 198 records, recurrence target
@@ -26,8 +21,7 @@ def download_file(url, filename, description=""):
 
     Returns (filepath, is_new_download).
     is_new_download is False when the file already existed so callers can
-    skip post-processing steps (e.g. adding CSV headers) that must only run
-    once on a freshly downloaded raw file.
+    skip post-processing steps that must only run once on a freshly downloaded raw file.
     """
     filepath = os.path.join(DATA_DIR, filename)
     if os.path.exists(filepath):
@@ -49,17 +43,15 @@ def download_file(url, filename, description=""):
 
 def download_uci_breast_cancer():
     """
-    UCI Breast Cancer Dataset (Ljubljana Oncology Institute)
-    286 instances, 9 features + recurrence target.
+    UCI Breast Cancer Dataset
     Source: https://archive.ics.uci.edu/dataset/14/breast+cancer
     """
-    print("\n1. UCI Breast Cancer (Ljubljana) Dataset")
+    print("\n1. UCI Breast Cancer Dataset")
     url = "https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer/breast-cancer.data"
-    filepath, is_new = download_file(url, "uci_breast_cancer.csv", "UCI Breast Cancer Ljubljana")
+    filepath, is_new = download_file(url, "uci_breast_cancer.csv", "UCI Breast Cancer")
 
     if filepath and is_new:
-        # Raw file has no headers — add them once on first download only.
-        # Doing this on every call would treat the header row as data on re-runs.
+        # Raw file has no headers added once on first download only. 
         columns = ['class', 'age', 'menopause', 'tumor_size', 'inv_nodes',
                    'node_caps', 'deg_malig', 'breast', 'breast_quad', 'irradiat']
         df = pd.read_csv(filepath, header=None, names=columns, na_values='?')
@@ -72,7 +64,6 @@ def download_uci_breast_cancer():
 def download_wpbc():
     """
     Wisconsin Prognostic Breast Cancer (WPBC)
-    198 instances, recurrence/non-recurrence with time.
     Source: https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/
     """
     print("\n2. Wisconsin Prognostic Breast Cancer (WPBC) Dataset")
@@ -80,7 +71,6 @@ def download_wpbc():
     filepath, is_new = download_file(url, "wpbc.csv", "Wisconsin Prognostic Breast Cancer")
 
     if filepath and is_new:
-        # Raw file has no headers — add them once on first download only.
         feature_names = []
         for prefix in ['mean', 'se', 'worst']:
             for feat in ['radius', 'texture', 'perimeter', 'area', 'smoothness',
@@ -98,11 +88,9 @@ def download_wpbc():
 def download_thyroid_cancer():
     """
     Differentiated Thyroid Cancer Recurrence Dataset
-    383 instances, 16 clinicopathologic features + recurrence target.
     Source: https://archive.ics.uci.edu/dataset/915/differentiated+thyroid+cancer+recurrence
     """
     print("\n3. Differentiated Thyroid Cancer Recurrence Dataset")
-    # Try the direct download URL
     url = "https://archive.ics.uci.edu/static/public/915/differentiated+thyroid+cancer+recurrence.zip"
     zip_path = os.path.join(DATA_DIR, "thyroid_cancer.zip")
     csv_path = os.path.join(DATA_DIR, "thyroid_cancer.csv")
@@ -121,7 +109,6 @@ def download_thyroid_cancer():
         with open(zip_path, 'wb') as f:
             f.write(response.content)
         
-        # Extract CSV from zip
         with zipfile.ZipFile(zip_path, 'r') as z:
             csv_files = [f for f in z.namelist() if f.endswith('.csv')]
             if csv_files:
@@ -130,13 +117,11 @@ def download_thyroid_cancer():
                     df.to_csv(csv_path, index=False)
                     print(f"  [OK] Extracted {len(df)} records to {csv_path}")
                     print(f"  [INFO] Columns: {list(df.columns)}")
-                    # Find the recurrence column
                     for col in df.columns:
                         if 'recur' in col.lower() or 'relapse' in col.lower():
                             print(f"  [INFO] Target column '{col}': {df[col].value_counts().to_string()}")
             else:
                 print("  [ERROR] No CSV found in zip file")
-                # Try reading as data files
                 for name in z.namelist():
                     print(f"    Found: {name}")
         
@@ -158,8 +143,7 @@ def create_thyroid_fallback(csv_path):
     # This creates data based on the known structure of the UCI thyroid cancer recurrence dataset
     # Features: Age, Gender, Smoking, Hx Smoking, Hx Radiotherapy, Thyroid Function,
     #           Physical Examination, Adenopathy, Pathology, Focality, Risk, T, N, M, Stage, Response, Recurred
-    # NOTE: numpy is imported at the module level; no local import needed.
-    np.random.seed(42)
+    np.random.seed(29)
     n = 383
     
     data = {
@@ -202,12 +186,7 @@ def create_thyroid_fallback(csv_path):
 
 
 def download_lung_cancer():
-    """
-    Lung Cancer Survey dataset from Kaggle (commonly available).
-    Contains demographic and symptom features.
-    """
     print("\n4. Lung Cancer Dataset")
-    # This dataset is commonly available and contains patient info
     url = "https://archive.ics.uci.edu/ml/machine-learning-databases/lung-cancer/lung-cancer.data"
     filepath = download_file(url, "lung_cancer.csv", "UCI Lung Cancer")
     
@@ -223,23 +202,18 @@ def download_lung_cancer():
 
 def main():
     print("=" * 60)
-    print("CANCER RELAPSE PREDICTION - DATASET DOWNLOADER")
+    print("CANCER RELAPSE PREDICTION DATASET DOWNLOADER")
     print("=" * 60)
     print(f"Download directory: {DATA_DIR}")
 
     download_uci_breast_cancer()
     download_wpbc()
     download_thyroid_cancer()
-    # NOTE: download_lung_cancer() is intentionally excluded here.
-    # preprocess_data.py has no process_lung_cancer() function; that cancer type
-    # is covered by clinically-informed synthetic data in generate_clinical_synthetic().
-    # Re-enable this call only after implementing a matching preprocessing step.
     
     print("\n" + "=" * 60)
     print("DOWNLOAD COMPLETE")
     print("=" * 60)
     
-    # List downloaded files
     print("\nDownloaded files:")
     for f in os.listdir(DATA_DIR):
         size = os.path.getsize(os.path.join(DATA_DIR, f))

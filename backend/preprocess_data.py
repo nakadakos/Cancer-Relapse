@@ -1,11 +1,3 @@
-"""
-preprocess_data.py
-==================
-Harmonizes real-world cancer datasets into a unified format with 22 features + target.
-Maps features from UCI Breast Cancer, WPBC, and Thyroid Cancer datasets.
-Augments with clinically-informed synthetic data for cancer types without public datasets.
-"""
-
 import os
 import pandas as pd
 import numpy as np
@@ -25,11 +17,10 @@ TARGET_COLUMNS = [
     'Previous_Reoccurrence', 'Relapse'
 ]
 
-np.random.seed(42)
+np.random.seed(29)
 
 
 def age_range_to_numeric(age_str):
-    """Convert age range string like '40-49' to midpoint."""
     if pd.isna(age_str):
         return 50
     parts = str(age_str).split('-')
@@ -39,7 +30,6 @@ def age_range_to_numeric(age_str):
 
 
 def tumor_size_range_to_numeric(size_str):
-    """Convert tumor size range string like '15-19' to midpoint in cm."""
     if pd.isna(size_str):
         return 2.5
     parts = str(size_str).split('-')
@@ -49,7 +39,6 @@ def tumor_size_range_to_numeric(size_str):
 
 
 def inv_nodes_to_binary(nodes_str):
-    """Convert inv-nodes range to binary Yes/No."""
     if pd.isna(nodes_str):
         return 'No'
     parts = str(nodes_str).split('-')
@@ -59,21 +48,19 @@ def inv_nodes_to_binary(nodes_str):
 
 
 def process_uci_breast_cancer():
-    """Process UCI Breast Cancer Ljubljana dataset (286 records)."""
     filepath = os.path.join(RAW_DIR, 'uci_breast_cancer.csv')
     if not os.path.exists(filepath):
         print("  [SKIP] UCI Breast Cancer not found")
         return pd.DataFrame()
 
-    print("  Processing UCI Breast Cancer (Ljubljana)...")
+    print("  Processing UCI Breast Cancer (Ljubl)...")
     df = pd.read_csv(filepath)
 
     records = []
     for _, row in df.iterrows():
-        # deg_malig is "degree of malignancy" (1-3), a histological grade.
-        # It is NOT an AJCC tumor stage. Use it only for Tumor_Grade.
+        # deg_malig is "degree of malignancy" (1-3)
         # Tumor_Stage is imputed from a realistic distribution for early-stage
-        # breast cancer (Ljubljana cohort was primarily stage I-II).
+        # breast cancer (Ljubl was mostly stage I-II).
         deg = min(max(int(row.get('deg_malig', 2)), 1), 3)
         record = {
             'Age': age_range_to_numeric(row.get('age')),
@@ -82,9 +69,7 @@ def process_uci_breast_cancer():
             'BMI': round(np.random.normal(27, 5), 1),
             'Smoking_Alcohol_History': np.random.choice(['None', 'Occasional', 'Frequent', 'Heavy'], p=[0.5, 0.3, 0.15, 0.05]),
             'Cancer_Type': 'Breast',
-            # FIX: Tumor_Stage is imputed independently; deg_malig is not an AJCC stage.
             'Tumor_Stage': np.random.choice([1, 2, 3, 4], p=[0.35, 0.45, 0.15, 0.05]),
-            # FIX: deg_malig correctly maps to Tumor_Grade only.
             'Tumor_Grade': deg,
             'Tumor_Size_cm': tumor_size_range_to_numeric(row.get('tumor_size')),
             'Lymph_Nodes_Involved': inv_nodes_to_binary(row.get('inv_nodes')),
@@ -110,7 +95,7 @@ def process_uci_breast_cancer():
 
 
 def process_wpbc():
-    """Process Wisconsin Prognostic Breast Cancer dataset (198 records)."""
+    """Process Wisconsin Prognostic Breast Cancer dataset."""
     filepath = os.path.join(RAW_DIR, 'wpbc.csv')
     if not os.path.exists(filepath):
         print("  [SKIP] WPBC not found")
@@ -137,10 +122,8 @@ def process_wpbc():
                 grade = 2
 
         record = {
-            # NOTE: WPBC does not include patient age; it is imputed from U(30,79).
-            # This feature is therefore statistically independent of WPBC outcome labels
-            # and adds noise for these 198 rows. Treat Age-driven insights with caution
-            # for WPBC-sourced records.
+            # WPBC does not include patient age; it is imputed from U(30,79).
+            # This feature adds noise for these 198 rows. but it keeps the dataset consistent.
             'Age': np.random.randint(30, 80),
             'Sex': 'Female',
             'Athleticity': np.random.choice(['Low', 'Medium', 'High'], p=[0.4, 0.4, 0.2]),
@@ -173,7 +156,6 @@ def process_wpbc():
 
 
 def process_thyroid_cancer():
-    """Process Thyroid Cancer Recurrence dataset (383 records)."""
     filepath = os.path.join(RAW_DIR, 'thyroid_cancer.csv')
     if not os.path.exists(filepath):
         print("  [SKIP] Thyroid Cancer not found")
@@ -204,13 +186,9 @@ def process_thyroid_cancer():
         n_status = str(row.get('N', 'N0')).strip()
         lymph = 'Yes' if n_status != 'N0' else 'No'
 
-        # Determine recurrence
         recurred = str(row.get('Recurred', 'No')).strip()
         relapse = 'Yes' if recurred == 'Yes' else 'No'
 
-        # FIX: read radiation therapy from BOTH the typo'd and the correct column name.
-        # The fallback dataset uses 'Hx Radiothreapy'; a real UCI download may use
-        # 'Hx Radiotherapy'. We check both and default to 'No' only if neither exists.
         rad_value = row.get('Hx Radiotherapy', row.get('Hx Radiothreapy', 'No'))
         radiation = 'Yes' if str(rad_value).strip().lower() == 'yes' else 'No'
 
@@ -220,8 +198,6 @@ def process_thyroid_cancer():
             'Athleticity': np.random.choice(['Low', 'Medium', 'High'], p=[0.35, 0.40, 0.25]),
             'BMI': round(np.random.normal(26, 4), 1),
             'Smoking_Alcohol_History': smoke_hist,
-            # FIX: Thyroid is its own cancer type; mapping it to 'Mouth' is clinically
-            # incorrect (different biology, treatments, and recurrence patterns).
             'Cancer_Type': 'Thyroid',
             'Tumor_Stage': stage,
             'Tumor_Grade': np.random.choice([1, 2, 3], p=[0.4, 0.4, 0.2]),
@@ -249,10 +225,6 @@ def process_thyroid_cancer():
 
 
 def generate_clinical_synthetic(cancer_type, n_samples, relapse_rate, surgery_types, sex_distribution=None):
-    """
-    Generate clinically-informed synthetic data for cancer types without public datasets.
-    Uses published recurrence rate statistics for realistic distributions.
-    """
     print(f"  Generating clinically-informed data for {cancer_type} ({n_samples} samples, {relapse_rate*100:.0f}% relapse rate)...")
     
     if sex_distribution is None:
@@ -317,10 +289,9 @@ def generate_clinical_synthetic(cancer_type, n_samples, relapse_rate, surgery_ty
 
 def main():
     print("=" * 60)
-    print("DATA PREPROCESSING & HARMONIZATION")
+    print("DATA PREPROCESSING")
     print("=" * 60)
 
-    # Process real-world datasets
     print("\n--- REAL-WORLD DATASETS ---")
     dfs = []
     
@@ -339,35 +310,28 @@ def main():
         df_thyroid['Data_Source'] = 'UCI_Thyroid_Recurrence'
         dfs.append(df_thyroid)
 
-    # Generate clinically-informed synthetic data for missing cancer types
-    # Using published 5-year recurrence rates from medical literature
-    print("\n--- CLINICALLY-INFORMED AUGMENTATION ---")
-    print("(Based on published medical recurrence statistics)")
+  
+    print("\n--- CLINICALLY-INFORMED SYNTHETIC DATASETS ---")
 
-    # Lung cancer: ~30-55% recurrence rate (NSCLC stage I-III)
     df_lung = generate_clinical_synthetic('Lung', 350, 0.38, ['Lobectomy', 'None'])
     df_lung['Data_Source'] = 'Clinical_Synthetic_Lung'
     dfs.append(df_lung)
 
-    # Colon cancer: ~20-40% recurrence rate
+
     df_colon = generate_clinical_synthetic('Colon', 350, 0.30, ['Resection', 'None'])
     df_colon['Data_Source'] = 'Clinical_Synthetic_Colon'
     dfs.append(df_colon)
 
-    # Prostate cancer: ~20-30% biochemical recurrence rate
+
     df_prostate = generate_clinical_synthetic('Prostate', 350, 0.25, ['Prostatectomy', 'None'], sex_distribution='Male')
     df_prostate['Data_Source'] = 'Clinical_Synthetic_Prostate'
     dfs.append(df_prostate)
 
-    # Liver cancer (HCC): ~50-70% recurrence rate
+
     df_liver = generate_clinical_synthetic('Liver', 350, 0.55, ['Excision', 'None'])
     df_liver['Data_Source'] = 'Clinical_Synthetic_Liver'
     dfs.append(df_liver)
 
-    # Mouth / oral cancer: ~30-50% recurrence rate (head-and-neck squamous cell)
-    # NOTE: The thyroid dataset was remapped from 'Mouth' → 'Thyroid' to fix a
-    # clinical misclassification. This block restores 'Mouth' as a properly
-    # labelled cancer type so the encoder is never given all-zero columns for it.
     df_mouth = generate_clinical_synthetic('Mouth', 350, 0.40, ['Excision', 'None'])
     df_mouth['Data_Source'] = 'Clinical_Synthetic_Mouth'
     dfs.append(df_mouth)

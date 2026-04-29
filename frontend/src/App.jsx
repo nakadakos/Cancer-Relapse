@@ -26,6 +26,28 @@ const surgeryOptions = {
   Thyroid: ['None', 'Excision', 'Thyroidectomy'],
 };
 
+function Field({ label, name, type = 'text', value, onChange, children, ...props }) {
+  return (
+    <div className="form-group">
+      <label>{label}</label>
+      {children || <input type={type} name={name} className="form-control" value={value} onChange={onChange} {...props} />}
+    </div>
+  );
+}
+
+function Select({ label, name, options, value, onChange }) {
+  return (
+    <Field label={label} name={name}>
+      <select name={name} className="form-control" value={value} onChange={onChange}>
+        {options.map(o => {
+          const [val, lbl] = Array.isArray(o) ? o : [o, o];
+          return <option key={val} value={val}>{lbl}</option>;
+        })}
+      </select>
+    </Field>
+  );
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('predict');
   const [step, setStep] = useState(0);
@@ -36,8 +58,10 @@ function App() {
 
   const set = (name, value) => setForm(p => ({ ...p, [name]: value }));
   const handleChange = e => {
-    const { name, value, type } = e.target;
-    set(name, type === 'number' ? (value === '' ? '' : parseFloat(value)) : value);
+    const { name, value } = e.target;
+    // Keep values as strings while typing to avoid breaking decimals (e.g., '2.')
+    // FastAPI/Pydantic will automatically coerce them to int/float on the backend.
+    set(name, value);
   };
 
   const next = () => setStep(s => Math.min(s + 1, STEPS.length - 1));
@@ -47,10 +71,19 @@ function App() {
     setLoading(true);
     setError(null);
     try {
+      // Coerce numeric fields before sending
+      const payload = { ...form };
+      ['Age', 'Tumor_Stage', 'Tumor_Grade', 'Time_Since_Treatment_Months', 'Follow_Up_Visits'].forEach(k => {
+        if (payload[k] !== '') payload[k] = parseInt(payload[k], 10);
+      });
+      ['BMI', 'Tumor_Size_cm'].forEach(k => {
+        if (payload[k] !== '') payload[k] = parseFloat(payload[k]);
+      });
+
       const res = await fetch('http://localhost:8000/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('Server error');
       const data = await res.json();
@@ -73,30 +106,6 @@ function App() {
     return { r, c, offset, level };
   };
 
-  const Field = ({ label, name, type = 'text', children, ...props }) => (
-    <div className="form-group">
-      <label>{label}</label>
-      {children || <input type={type} name={name} className="form-control" value={form[name]} onChange={handleChange} {...props} />}
-    </div>
-  );
-
-  const Select = ({ label, name, options }) => (
-    <Field label={label} name={name}>
-      <select name={name} className="form-control" value={form[name]} onChange={handleChange}>
-        {options.map(o => {
-          const [val, lbl] = Array.isArray(o) ? o : [o, o];
-          return <option key={val} value={val}>{lbl}</option>;
-        })}
-      </select>
-    </Field>
-  );
-
-  const Icon = ({ d }) => (
-    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d={d} />
-    </svg>
-  );
-
   // Step content
   const stepContent = [
     // 0: Demography
@@ -106,12 +115,12 @@ function App() {
         Demography
       </div>
       <div className="form-grid">
-        <Field label="Age" name="Age" type="number" min={18} max={100} required />
-        <Select label="Sex" name="Sex" options={['Female', 'Male']} />
-        <Select label="Athleticity Level" name="Athleticity" options={['Low', 'Medium', 'High']} />
-        <Field label="BMI" name="BMI" type="number" step={0.1} min={10} max={60} required />
+        <Field label="Age" name="Age" type="number" min={18} max={100} required value={form.Age} onChange={handleChange} />
+        <Select label="Sex" name="Sex" options={['Female', 'Male']} value={form.Sex} onChange={handleChange} />
+        <Select label="Athleticity Level" name="Athleticity" options={['Low', 'Medium', 'High']} value={form.Athleticity} onChange={handleChange} />
+        <Field label="BMI" name="BMI" type="number" step={0.1} min={10} max={60} required value={form.BMI} onChange={handleChange} />
         <Select label="Smoking / Alcohol History" name="Smoking_Alcohol_History"
-          options={['None', 'Occasional', 'Frequent', 'Heavy']} />
+          options={['None', 'Occasional', 'Frequent', 'Heavy']} value={form.Smoking_Alcohol_History} onChange={handleChange} />
       </div>
     </>,
     // 1: Tumor
@@ -122,13 +131,13 @@ function App() {
       </div>
       <div className="form-grid">
         <Select label="Cancer Type (Location)" name="Cancer_Type"
-          options={['Breast', 'Lung', 'Colon', 'Prostate', 'Liver', 'Mouth', 'Thyroid']} />
-        <Field label="Tumor Stage (1–4)" name="Tumor_Stage" type="number" min={1} max={4} required />
-        <Field label="Tumor Grade (1–3)" name="Tumor_Grade" type="number" min={1} max={3} required />
-        <Field label="Tumor Size (cm)" name="Tumor_Size_cm" type="number" step={0.1} min={0.1} max={30} required />
-        <Select label="Lymph Nodes Involved" name="Lymph_Nodes_Involved" options={['No', 'Yes']} />
-        <Select label="Metastasis Status" name="Metastasis" options={['No', 'Yes']} />
-        <Select label="Tumor Type" name="Tumor_Type" options={['Malignant', 'Benign']} />
+          options={['Breast', 'Lung', 'Colon', 'Prostate', 'Liver', 'Mouth', 'Thyroid']} value={form.Cancer_Type} onChange={handleChange} />
+        <Field label="Tumor Stage (1–4)" name="Tumor_Stage" type="number" min={1} max={4} required value={form.Tumor_Stage} onChange={handleChange} />
+        <Field label="Tumor Grade (1–3)" name="Tumor_Grade" type="number" min={1} max={3} required value={form.Tumor_Grade} onChange={handleChange} />
+        <Field label="Tumor Size (cm)" name="Tumor_Size_cm" type="number" step={0.1} min={0.1} max={30} required value={form.Tumor_Size_cm} onChange={handleChange} />
+        <Select label="Lymph Nodes Involved" name="Lymph_Nodes_Involved" options={['No', 'Yes']} value={form.Lymph_Nodes_Involved} onChange={handleChange} />
+        <Select label="Metastasis Status" name="Metastasis" options={['No', 'Yes']} value={form.Metastasis} onChange={handleChange} />
+        <Select label="Tumor Type" name="Tumor_Type" options={['Malignant', 'Benign']} value={form.Tumor_Type} onChange={handleChange} />
       </div>
     </>,
     // 2: Biomarkers
@@ -139,9 +148,9 @@ function App() {
       </div>
       <div className="form-grid">
         <Select label="Hormone Receptor Status (ER/PR/HER2)" name="Hormone_Receptor"
-          options={[['Positive', 'Positive'], ['Negative', 'Negative'], ['Not Applicable', 'Not Applicable']]} />
+          options={[['Positive', 'Positive'], ['Negative', 'Negative'], ['Not Applicable', 'Not Applicable']]} value={form.Hormone_Receptor} onChange={handleChange} />
         <Select label="Gene Mutations" name="Gene_Mutations"
-          options={['None', ['TP53', 'TP53'], ['BRCA1/2', 'BRCA1/2'], 'Other']} />
+          options={['None', ['TP53', 'TP53'], ['BRCA1/2', 'BRCA1/2'], 'Other']} value={form.Gene_Mutations} onChange={handleChange} />
       </div>
     </>,
     // 3: Treatment
@@ -152,11 +161,11 @@ function App() {
       </div>
       <div className="form-grid">
         <Select label="Surgery Type" name="Surgery_Type"
-          options={surgeryOptions[form.Cancer_Type] || ['None', 'Excision']} />
-        <Select label="Chemotherapy" name="Chemotherapy" options={['No', 'Yes']} />
-        <Select label="Radiation Therapy" name="Radiation_Therapy" options={['No', 'Yes']} />
-        <Select label="Hormone Therapy" name="Hormone_Therapy" options={['No', 'Yes']} />
-        <Select label="Immunotherapy" name="Immunotherapy" options={['No', 'Yes']} />
+          options={surgeryOptions[form.Cancer_Type] || ['None', 'Excision']} value={form.Surgery_Type} onChange={handleChange} />
+        <Select label="Chemotherapy" name="Chemotherapy" options={['No', 'Yes']} value={form.Chemotherapy} onChange={handleChange} />
+        <Select label="Radiation Therapy" name="Radiation_Therapy" options={['No', 'Yes']} value={form.Radiation_Therapy} onChange={handleChange} />
+        <Select label="Hormone Therapy" name="Hormone_Therapy" options={['No', 'Yes']} value={form.Hormone_Therapy} onChange={handleChange} />
+        <Select label="Immunotherapy" name="Immunotherapy" options={['No', 'Yes']} value={form.Immunotherapy} onChange={handleChange} />
       </div>
     </>,
     // 4: Follow-up
@@ -166,9 +175,9 @@ function App() {
         Follow-up Data
       </div>
       <div className="form-grid">
-        <Field label="Time Since Treatment Ended (Months)" name="Time_Since_Treatment_Months" type="number" min={0} max={240} required />
-        <Field label="Number of Follow-up Visits" name="Follow_Up_Visits" type="number" min={0} max={100} required />
-        <Select label="Previous Reoccurrence History" name="Previous_Reoccurrence" options={['No', 'Yes']} />
+        <Field label="Time Since Treatment Ended (Months)" name="Time_Since_Treatment_Months" type="number" min={0} max={240} required value={form.Time_Since_Treatment_Months} onChange={handleChange} />
+        <Field label="Number of Follow-up Visits" name="Follow_Up_Visits" type="number" min={0} max={100} required value={form.Follow_Up_Visits} onChange={handleChange} />
+        <Select label="Previous Reoccurrence History" name="Previous_Reoccurrence" options={['No', 'Yes']} value={form.Previous_Reoccurrence} onChange={handleChange} />
       </div>
     </>
   ];
@@ -182,8 +191,8 @@ function App() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
         </div>
-        <h1 className="app-title">OncoRelapse Predictor</h1>
-        <p className="app-subtitle">AI-powered cancer relapse risk assessment using real-world clinical data</p>
+        <h1 className="app-title">C.A.R.E.</h1>
+        <p className="app-subtitle">Clinical Augmentation & Relapse Estimator</p>
         <div className="tab-nav">
           <button className={`tab-btn ${activeTab === 'predict' ? 'active' : ''}`} onClick={() => setActiveTab('predict')}>
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
@@ -217,7 +226,9 @@ function App() {
                   <div key={s} style={{ display: 'flex', alignItems: 'center' }}>
                     <div className={`step ${i === step ? 'active' : i < step ? 'completed' : ''}`}
                          onClick={() => setStep(i)} style={{ cursor: 'pointer' }}>
-                      <div className="step-dot">{i < step ? '✓' : i + 1}</div>
+                      <div className="step-dot">
+                        {i < step ? <Icon d="M5 13l4 4L19 7" /> : i + 1}
+                      </div>
                       <span className="step-label">{s}</span>
                     </div>
                     {i < STEPS.length - 1 && <div className={`step-line ${i < step ? 'completed' : ''}`} />}
@@ -273,7 +284,13 @@ function Results({ result, gaugeProps, reset }) {
           </div>
         </div>
         <div className={`risk-badge ${level}`}>
-          {level === 'high' ? '⚠ High Risk' : level === 'medium' ? '⚡ Medium Risk' : '✓ Low Risk'}
+          {level === 'high' ? (
+            <><span style={{marginRight: '6px'}}><Icon d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></span> High Risk</>
+          ) : level === 'medium' ? (
+            <><span style={{marginRight: '6px'}}><Icon d="M13 10V3L4 14h7v7l9-11h-7z" /></span> Medium Risk</>
+          ) : (
+            <><span style={{marginRight: '6px'}}><Icon d="M5 13l4 4L19 7" /></span> Low Risk</>
+          )}
         </div>
       </div>
 
@@ -285,8 +302,8 @@ function Results({ result, gaugeProps, reset }) {
           </h4>
           <p>
             Based on the provided clinical data, the model predicts that the patient
-            <strong style={{ color: result.prediction === 'Yes' ? 'var(--danger)' : 'var(--success)' }}>
-              {result.prediction === 'Yes' ? ' IS AT ELEVATED RISK ' : ' IS AT LOW RISK '}
+            <strong className={level}>
+              {level === 'high' ? ' IS AT HIGH RISK ' : level === 'medium' ? ' IS AT MEDIUM RISK ' : ' IS AT LOW RISK '}
             </strong>
             of cancer relapse. This prediction is generated using a model trained on real-world
             clinical datasets from UCI ML Repository and clinically-informed data.
@@ -334,7 +351,11 @@ function Results({ result, gaugeProps, reset }) {
       </div>
 
       <div className="disclaimer">
-        <strong>⚠ Medical Disclaimer:</strong> This tool is for educational and research purposes only.
+        <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Icon d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /> 
+          Medical Disclaimer:
+        </strong> 
+        This tool is for educational and research purposes only.
         It is not a substitute for professional medical advice, diagnosis, or treatment. Always consult
         qualified healthcare providers for clinical decisions.
       </div>

@@ -1,6 +1,6 @@
-# OncoRelapse — Frontend
+# C.A.R.E. — Frontend
 
-React + Vite web application for the OncoRelapse cancer relapse prediction tool.
+React + Vite web application for the C.A.R.E. cancer relapse prediction tool.
 
 ---
 

@@ -1,15 +1,7 @@
-"""
-main.py
-=======
-FastAPI server for Cancer Relapse Prediction.
-Provides /predict endpoint and /model-info for frontend.
-"""
-
 import sys
 import os
 import json
 import logging
-
 import joblib
 import pandas as pd
 from fastapi import FastAPI, Response
@@ -18,8 +10,8 @@ from pydantic import BaseModel, Field
 
 app = FastAPI(
     title="Cancer Relapse Prediction API",
-    description="AI-powered API for predicting cancer relapse risk based on clinical patient data",
-    version="1.0.0"
+    description="API for predicting cancer relapse risk based on clinical patient data",
+    version="6.7"
 )
 
 # CORS
@@ -31,7 +23,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load model and evaluation data
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
 DATA_PATH = os.path.join(os.path.dirname(__file__), 'data', 'processed', 'combined_cancer_data.csv')
 model_path = os.path.join(MODEL_DIR, 'model_pipeline.pkl')
@@ -46,7 +37,6 @@ try:
     pipeline = joblib.load(model_path)
     print(f"Model loaded from {model_path}")
 except Exception as e:
-    # Log to stderr so process supervisors (Docker, systemd) surface the failure.
     print(f"[ERROR] Could not load model from {model_path}: {e}", file=sys.stderr)
     logging.error("Model load failed: %s", e)
 
@@ -101,8 +91,6 @@ def read_root():
 
 @app.get("/health")
 def health_check(response: Response):
-    """Health endpoint for container orchestration and uptime monitors.
-    Returns 200 when the model is loaded and ready, 503 otherwise."""
     if pipeline is None:
         response.status_code = 503
         return {"status": "unhealthy", "detail": "Model not loaded"}
@@ -126,7 +114,6 @@ def predict_relapse(data: PatientData):
         except Exception:
             probability = None
 
-        # Determine risk factors
         risk_factors = []
         if data.Tumor_Stage >= 3:
             risk_factors.append("Advanced tumor stage (Stage {})".format(data.Tumor_Stage))
@@ -145,7 +132,6 @@ def predict_relapse(data: PatientData):
         if data.BMI > 35:
             risk_factors.append("Elevated BMI")
 
-        # Include model stats
         best_model_name = eval_results.get("best_model", "Unknown")
         model_stats = eval_results.get("all_results", {}).get(best_model_name, {})
 
@@ -179,7 +165,6 @@ def model_info():
 
 @app.get("/visualizations")
 def get_visualizations():
-    """Return aggregated chart data for the frontend dashboard."""
     try:
         df = pd.read_csv(DATA_PATH)
     except Exception as e:
@@ -187,12 +172,10 @@ def get_visualizations():
 
     df['Relapse_Binary'] = (df['Relapse'] == 'Yes').astype(int)
 
-    # 1. Relapse rate by cancer type
     cancer_relapse = df.groupby('Cancer_Type')['Relapse_Binary'].agg(['mean', 'count']).reset_index()
     cancer_relapse.columns = ['cancer_type', 'relapse_rate', 'count']
     cancer_relapse['relapse_rate'] = (cancer_relapse['relapse_rate'] * 100).round(1)
 
-    # 2. Age distribution by relapse
     age_bins = [20, 30, 40, 50, 60, 70, 80, 90]
     df['Age_Group'] = pd.cut(df['Age'], bins=age_bins, labels=[f"{a}-{b-1}" for a, b in zip(age_bins[:-1], age_bins[1:])])
     age_dist = df.groupby(['Age_Group', 'Relapse']).size().unstack(fill_value=0).reset_index()
@@ -204,12 +187,10 @@ def get_visualizations():
             "relapse": int(row.get('Yes', 0))
         })
 
-    # 3. Tumor stage vs relapse rate
     stage_relapse = df.groupby('Tumor_Stage')['Relapse_Binary'].mean().reset_index()
     stage_data = [{"stage": f"Stage {int(r['Tumor_Stage'])}", "relapse_rate": round(r['Relapse_Binary'] * 100, 1)}
                   for _, r in stage_relapse.iterrows()]
 
-    # 4. Treatment impact on relapse
     treatments = ['Chemotherapy', 'Radiation_Therapy', 'Hormone_Therapy', 'Immunotherapy']
     treatment_data = []
     for t in treatments:
@@ -221,7 +202,6 @@ def get_visualizations():
             "without_treatment": round(no_rate, 1)
         })
 
-    # 5. Smoking impact
     smoking_relapse = df.groupby('Smoking_Alcohol_History')['Relapse_Binary'].mean().reset_index()
     smoking_order = ['None', 'Occasional', 'Frequent', 'Heavy']
     smoking_data = []
@@ -230,7 +210,6 @@ def get_visualizations():
         if len(row) > 0:
             smoking_data.append({"level": level, "relapse_rate": round(row.iloc[0]['Relapse_Binary'] * 100, 1)})
 
-    # 6. Model comparison
     model_data = []
     if eval_results:
         for name, metrics in eval_results.get("all_results", {}).items():
@@ -243,13 +222,11 @@ def get_visualizations():
                 "roc_auc": metrics.get("roc_auc", 0) * 100
             })
 
-    # 7. Dataset summary
     summary = {
         "total_records": len(df),
         "relapse_count": int(df['Relapse_Binary'].sum()),
         "no_relapse_count": int((df['Relapse_Binary'] == 0).sum()),
         "cancer_types": int(df['Cancer_Type'].nunique()),
-        # isin() for literal matching — avoids str.contains() treating '|' as a regex OR.
         "real_data_pct": round(
             df['Data_Source'].isin(
                 ['UCI_Breast_Ljubljana', 'WPBC', 'UCI_Thyroid_Recurrence']

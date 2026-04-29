@@ -1,4 +1,4 @@
-# OncoRelapse Predictor
+# C.A.R.E. (Clinical Augmentation & Relapse Estimator)
 
 An AI-powered cancer relapse risk assessment tool built with a Python/FastAPI backend and a React/Vite frontend.
 

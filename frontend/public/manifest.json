@@ -1,6 +1,6 @@
 {
-  "name": "OncoRelapse Predictor",
-  "short_name": "OncoRelapse",
+  "name": "C.A.R.E. Predictor",
+  "short_name": "C.A.R.E.",
   "description": "AI-powered cancer relapse risk assessment tool.",
   "start_url": "/",
   "display": "standalone",
