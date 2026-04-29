@@ -12,6 +12,7 @@ Datasets:
 
 import os
 import io
+import numpy as np
 import requests
 import pandas as pd
 import zipfile
@@ -21,12 +22,18 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 
 def download_file(url, filename, description=""):
-    """Download a file from URL and save locally."""
+    """Download a file from URL and save locally.
+
+    Returns (filepath, is_new_download).
+    is_new_download is False when the file already existed so callers can
+    skip post-processing steps (e.g. adding CSV headers) that must only run
+    once on a freshly downloaded raw file.
+    """
     filepath = os.path.join(DATA_DIR, filename)
     if os.path.exists(filepath):
         print(f"  [SKIP] {filename} already exists")
-        return filepath
-    
+        return filepath, False
+
     print(f"  [DOWNLOADING] {description or filename}...")
     try:
         response = requests.get(url, timeout=30)
@@ -34,10 +41,10 @@ def download_file(url, filename, description=""):
         with open(filepath, 'wb') as f:
             f.write(response.content)
         print(f"  [OK] Saved to {filepath}")
-        return filepath
+        return filepath, True
     except Exception as e:
         print(f"  [ERROR] Failed to download {filename}: {e}")
-        return None
+        return None, False
 
 
 def download_uci_breast_cancer():
@@ -48,12 +55,13 @@ def download_uci_breast_cancer():
     """
     print("\n1. UCI Breast Cancer (Ljubljana) Dataset")
     url = "https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer/breast-cancer.data"
-    filepath = download_file(url, "uci_breast_cancer.csv", "UCI Breast Cancer Ljubljana")
-    
-    if filepath:
-        # Add column headers (the raw file has no headers)
+    filepath, is_new = download_file(url, "uci_breast_cancer.csv", "UCI Breast Cancer Ljubljana")
+
+    if filepath and is_new:
+        # Raw file has no headers — add them once on first download only.
+        # Doing this on every call would treat the header row as data on re-runs.
         columns = ['class', 'age', 'menopause', 'tumor_size', 'inv_nodes',
-                    'node_caps', 'deg_malig', 'breast', 'breast_quad', 'irradiat']
+                   'node_caps', 'deg_malig', 'breast', 'breast_quad', 'irradiat']
         df = pd.read_csv(filepath, header=None, names=columns, na_values='?')
         df.to_csv(filepath, index=False)
         print(f"  [INFO] {len(df)} records, columns: {list(df.columns)}")
@@ -69,16 +77,16 @@ def download_wpbc():
     """
     print("\n2. Wisconsin Prognostic Breast Cancer (WPBC) Dataset")
     url = "https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wpbc.data"
-    filepath = download_file(url, "wpbc.csv", "Wisconsin Prognostic Breast Cancer")
-    
-    if filepath:
-        # WPBC columns: ID, Outcome (R=recur, N=non-recur), Time, then 30 features + tumor_size + lymph_node
+    filepath, is_new = download_file(url, "wpbc.csv", "Wisconsin Prognostic Breast Cancer")
+
+    if filepath and is_new:
+        # Raw file has no headers — add them once on first download only.
         feature_names = []
         for prefix in ['mean', 'se', 'worst']:
             for feat in ['radius', 'texture', 'perimeter', 'area', 'smoothness',
                          'compactness', 'concavity', 'concave_points', 'symmetry', 'fractal_dim']:
                 feature_names.append(f"{prefix}_{feat}")
-        
+
         columns = ['id', 'outcome', 'time'] + feature_names + ['tumor_size', 'lymph_node_status']
         df = pd.read_csv(filepath, header=None, names=columns, na_values='?')
         df.to_csv(filepath, index=False)
@@ -148,9 +156,9 @@ def download_thyroid_cancer():
 def create_thyroid_fallback(csv_path):
     """Create thyroid cancer dataset from the known UCI structure if download fails."""
     # This creates data based on the known structure of the UCI thyroid cancer recurrence dataset
-    # Features: Age, Gender, Smoking, Hx Smoking, Hx Radiotherapy, Thyroid Function, 
+    # Features: Age, Gender, Smoking, Hx Smoking, Hx Radiotherapy, Thyroid Function,
     #           Physical Examination, Adenopathy, Pathology, Focality, Risk, T, N, M, Stage, Response, Recurred
-    import numpy as np
+    # NOTE: numpy is imported at the module level; no local import needed.
     np.random.seed(42)
     n = 383
     
@@ -218,11 +226,14 @@ def main():
     print("CANCER RELAPSE PREDICTION - DATASET DOWNLOADER")
     print("=" * 60)
     print(f"Download directory: {DATA_DIR}")
-    
+
     download_uci_breast_cancer()
     download_wpbc()
     download_thyroid_cancer()
-    download_lung_cancer()
+    # NOTE: download_lung_cancer() is intentionally excluded here.
+    # preprocess_data.py has no process_lung_cancer() function; that cancer type
+    # is covered by clinically-informed synthetic data in generate_clinical_synthetic().
+    # Re-enable this call only after implementing a matching preprocessing step.
     
     print("\n" + "=" * 60)
     print("DOWNLOAD COMPLETE")

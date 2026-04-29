@@ -5,13 +5,16 @@ FastAPI server for Cancer Relapse Prediction.
 Provides /predict endpoint and /model-info for frontend.
 """
 
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
-import joblib
-import json
-import pandas as pd
-from fastapi.middleware.cors import CORSMiddleware
+import sys
 import os
+import json
+import logging
+
+import joblib
+import pandas as pd
+from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 app = FastAPI(
     title="Cancer Relapse Prediction API",
@@ -43,7 +46,9 @@ try:
     pipeline = joblib.load(model_path)
     print(f"Model loaded from {model_path}")
 except Exception as e:
-    print(f"Error loading model: {e}")
+    # Log to stderr so process supervisors (Docker, systemd) surface the failure.
+    print(f"[ERROR] Could not load model from {model_path}: {e}", file=sys.stderr)
+    logging.error("Model load failed: %s", e)
 
 try:
     with open(eval_path, 'r') as f:
@@ -58,34 +63,50 @@ except Exception:
     feature_importances = {}
 
 
+from typing import Literal
+
 class PatientData(BaseModel):
+    """Request body for /predict.  All categorical fields use Literal types so
+    FastAPI/Pydantic rejects invalid values (e.g. lowercase 'yes') before they
+    reach the encoder, which would silently drop unknown categories."""
+
     Age: int = Field(..., ge=18, le=100, description="Patient age")
-    Sex: str = Field(..., description="Male or Female")
-    Athleticity: str = Field(..., description="Low, Medium, or High")
+    Sex: Literal['Male', 'Female']
+    Athleticity: Literal['Low', 'Medium', 'High']
     BMI: float = Field(..., ge=10, le=60, description="Body Mass Index")
-    Smoking_Alcohol_History: str = Field(..., description="None, Occasional, Frequent, Heavy")
-    Cancer_Type: str = Field(..., description="Breast, Lung, Colon, Prostate, Liver, Mouth")
+    Smoking_Alcohol_History: Literal['None', 'Occasional', 'Frequent', 'Heavy']
+    Cancer_Type: Literal['Breast', 'Lung', 'Colon', 'Prostate', 'Liver', 'Mouth', 'Thyroid']
     Tumor_Stage: int = Field(..., ge=1, le=4, description="Tumor stage 1-4")
     Tumor_Grade: int = Field(..., ge=1, le=3, description="Tumor grade 1-3")
     Tumor_Size_cm: float = Field(..., ge=0.1, le=30, description="Tumor size in cm")
-    Lymph_Nodes_Involved: str = Field(..., description="Yes or No")
-    Metastasis: str = Field(..., description="Yes or No")
-    Tumor_Type: str = Field(..., description="Malignant or Benign")
-    Hormone_Receptor: str = Field(..., description="Positive, Negative, or Not Applicable")
-    Gene_Mutations: str = Field(..., description="None, TP53, BRCA1/2, Other")
+    Lymph_Nodes_Involved: Literal['Yes', 'No']
+    Metastasis: Literal['Yes', 'No']
+    Tumor_Type: Literal['Malignant', 'Benign']
+    Hormone_Receptor: Literal['Positive', 'Negative', 'Not Applicable']
+    Gene_Mutations: Literal['None', 'TP53', 'BRCA1/2', 'Other']
     Surgery_Type: str = Field(..., description="Surgery type performed")
-    Chemotherapy: str = Field(..., description="Yes or No")
-    Radiation_Therapy: str = Field(..., description="Yes or No")
-    Hormone_Therapy: str = Field(..., description="Yes or No")
-    Immunotherapy: str = Field(..., description="Yes or No")
+    Chemotherapy: Literal['Yes', 'No']
+    Radiation_Therapy: Literal['Yes', 'No']
+    Hormone_Therapy: Literal['Yes', 'No']
+    Immunotherapy: Literal['Yes', 'No']
     Time_Since_Treatment_Months: int = Field(..., ge=0, le=240, description="Months since treatment ended")
     Follow_Up_Visits: int = Field(..., ge=0, le=100, description="Number of follow-up visits")
-    Previous_Reoccurrence: str = Field(..., description="Yes or No")
+    Previous_Reoccurrence: Literal['Yes', 'No']
 
 
 @app.get("/")
 def read_root():
     return {"message": "Cancer Relapse Prediction API is running.", "version": "1.0.0"}
+
+
+@app.get("/health")
+def health_check(response: Response):
+    """Health endpoint for container orchestration and uptime monitors.
+    Returns 200 when the model is loaded and ready, 503 otherwise."""
+    if pipeline is None:
+        response.status_code = 503
+        return {"status": "unhealthy", "detail": "Model not loaded"}
+    return {"status": "ok", "model": eval_results.get("best_model", "unknown")}
 
 
 @app.post("/predict")
@@ -228,7 +249,12 @@ def get_visualizations():
         "relapse_count": int(df['Relapse_Binary'].sum()),
         "no_relapse_count": int((df['Relapse_Binary'] == 0).sum()),
         "cancer_types": int(df['Cancer_Type'].nunique()),
-        "real_data_pct": round(len(df[df['Data_Source'].str.contains('UCI|WPBC')]) / len(df) * 100, 1),
+        # isin() for literal matching — avoids str.contains() treating '|' as a regex OR.
+        "real_data_pct": round(
+            df['Data_Source'].isin(
+                ['UCI_Breast_Ljubljana', 'WPBC', 'UCI_Thyroid_Recurrence']
+            ).sum() / len(df) * 100, 1
+        ),
         "avg_age": round(df['Age'].mean(), 1),
         "best_model": eval_results.get("best_model", "Unknown")
     }

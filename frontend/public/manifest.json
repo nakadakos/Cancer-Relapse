@@ -1,0 +1,17 @@
+{
+  "name": "OncoRelapse Predictor",
+  "short_name": "OncoRelapse",
+  "description": "AI-powered cancer relapse risk assessment tool.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e1a",
+  "theme_color": "#0a0e1a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

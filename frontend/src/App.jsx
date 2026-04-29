@@ -22,7 +22,8 @@ const surgeryOptions = {
   Colon: ['None', 'Resection'],
   Prostate: ['None', 'Prostatectomy'],
   Liver: ['None', 'Excision'],
-  Mouth: ['None', 'Excision']
+  Mouth: ['None', 'Excision'],
+  Thyroid: ['None', 'Excision', 'Thyroidectomy'],
 };
 
 function App() {
@@ -121,7 +122,7 @@ function App() {
       </div>
       <div className="form-grid">
         <Select label="Cancer Type (Location)" name="Cancer_Type"
-          options={['Breast', 'Lung', 'Colon', 'Prostate', 'Liver', 'Mouth']} />
+          options={['Breast', 'Lung', 'Colon', 'Prostate', 'Liver', 'Mouth', 'Thyroid']} />
         <Field label="Tumor Stage (1–4)" name="Tumor_Stage" type="number" min={1} max={4} required />
         <Field label="Tumor Grade (1–3)" name="Tumor_Grade" type="number" min={1} max={3} required />
         <Field label="Tumor Size (cm)" name="Tumor_Size_cm" type="number" step={0.1} min={0.1} max={30} required />
